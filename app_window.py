@@ -25,6 +25,7 @@ use_edge_as_color = tkinter.IntVar(root)
 dark_mode = tkinter.IntVar(root)
 cartoon_effect = tkinter.IntVar(root)
 save_enabled = tkinter.IntVar(root)
+scale_enabled = tkinter.IntVar(root)
 
 subplots_button = Checkbutton(root, text="Show comparison of the images", variable=use_subplots, font=baseFont)
 subplots_button.pack()
@@ -36,6 +37,8 @@ cartoon_effect_button = Checkbutton(root, text="Cartoon Effect (experimental, do
 cartoon_effect_button.pack()
 save_enabled_button = Checkbutton(root, text="Automatically save the figure", variable=save_enabled, font=baseFont)
 save_enabled_button.pack()
+scale_enabled_button = Checkbutton(root, text="Scale the image (faster, but image might look worse)", variable=scale_enabled, font=baseFont)
+scale_enabled_button.pack()
 
 status_box = Text(root, state='disabled', height=5, width=50, font=statusFont)
 status_box.pack()
@@ -49,7 +52,7 @@ def selectFile():
     status_box['state'] = 'normal'
     status_box.replace("1.0", "4.0", "Processing image " + image_name)
     status_box['state'] = 'disabled'
-    process_image(filename, use_subplots.get(), use_edge_as_color.get(), dark_mode.get(), cartoon_effect.get(), save_enabled.get())
+    process_image(filename, use_subplots.get(), use_edge_as_color.get(), dark_mode.get(), cartoon_effect.get(), save_enabled.get(), scale_enabled.get())
     status_box['state'] = 'normal'
     status_box.replace("2.0", "4.0", "\nProcessing done!\n")
     status_box['state'] = 'disabled'

@@ -7,10 +7,11 @@
 Some code applied from scikit-image docs, other python documentations, and StackOverflow
 """
 
+from re import L
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from skimage import io, color, filters, util, restoration
+from skimage import io, color, filters, util, restoration, transform
 import time
 
 use_invert = True
@@ -19,8 +20,30 @@ mask_at_end = True
 sobel_threshold = 0.005
 sobel_mult = 4
 sobel_offset = 0.0
+
 bucket_size = 16
 bucket_max_threshold = 255 - (bucket_size // 2 - 1)
+
+max_scale_image_size = 4000000
+
+def scale_image(image):
+    height_px = image.shape[0]
+    width_px = image.shape[1]
+    image_size = height_px * width_px
+    if (image_size < max_scale_image_size):
+        return image
+
+    scale_factor = int(np.floor(np.sqrt(image_size / max_scale_image_size)))
+
+    while (scale_factor >= 2):
+        if (height_px % scale_factor == 0 and width_px % scale_factor == 0):
+            factors = (scale_factor, scale_factor)
+            if (len(image.shape) == 3):
+                factors = (scale_factor, scale_factor, 1)
+            return transform.downscale_local_mean(image, factors)
+        scale_factor -= 1
+
+    return image
 
 def apply_drawing_mask(a):
     m = a <= sobel_threshold
@@ -67,19 +90,15 @@ def pick_color_at_edge(image, sobel_image):
 def process_cartoon_effect(image, sobel_image):
     mask = sobel_image < 0.92
     image[mask] = sobel_image[mask] * 0.35
-    # for i in range(0, len(image)):
-    #     for j in range(0, len(image[0])):
-    #         for k in range(3):
-    #             if (sobel_image[i][j][k] < 0.9):
-    #                 image[i][j][k] = sobel_image[i][j][k] * 0.35
     return image
 
-def process_save(save_enabled, filename):
+def process_save(save_enabled, filename, image):
     # https://stackoverflow.com/questions/39870642/matplotlib-how-to-plot-a-high-resolution-graph
     if (save_enabled):
         # <filename>_generated.<ext>
         save_name = filename[:max(0, filename.rfind("."))] + "_generated" + filename[filename.rfind("."):]
-        plt.savefig(fname=save_name, dpi=600)
+        image = util.img_as_ubyte(image)
+        io.imsave(save_name, image)
 
 def draw_sketch(filename, image, image_sobel, use_edge_as_color, cartoon_effect, save_enabled):
     plt.axis('off')
@@ -89,15 +108,17 @@ def draw_sketch(filename, image, image_sobel, use_edge_as_color, cartoon_effect,
         new_image = pick_color_at_edge(image, image_sobel)
         plt.imshow(new_image)
         print("Pick Color at edge takes " + str(time.perf_counter() - start_time) + " seconds.")
+        process_save(save_enabled, filename, new_image)
     elif cartoon_effect:
         new_image = process_cartoon_effect(image, image_sobel)
         plt.imshow(new_image)
         print("Cartoon effect takes " + str(time.perf_counter() - start_time) + " seconds.")
+        process_save(save_enabled, filename, new_image)
     else:
         plt.imshow(image_sobel, cmap=plt.cm.gray)
         print("Default effect takes " + str(time.perf_counter() - start_time) + " seconds.")
+        process_save(save_enabled, filename, image_sobel)
 
-    process_save(save_enabled, filename)
     plt.show()
 
 def draw_original(image):
@@ -116,7 +137,7 @@ def draw_original(image):
         plt.imshow(image, cmap=plt.cm.gray)
         fig.add_subplot(1, 2, 2)
 
-def process_image(filename, use_subplots, use_edge_as_color, dark_mode, cartoon_effect, save_enabled):
+def process_image(filename, use_subplots, use_edge_as_color, dark_mode, cartoon_effect, save_enabled, scale_enabled):
     # Use perf_counter as a stopwatch from https://realpython.com/python-timer/
     start_time = time.perf_counter()
     abs_start = start_time
@@ -125,8 +146,18 @@ def process_image(filename, use_subplots, use_edge_as_color, dark_mode, cartoon_
     if (image.shape[2] == 4):
         image = color.rgba2rgb(image)
 
+    image = util.img_as_float(image)
+
     print("Read image takes " + str(time.perf_counter() - start_time) + " seconds.")
     start_time = time.perf_counter()
+
+    if (scale_enabled):
+        image = scale_image(image)
+        print("Scale image takes " + str(time.perf_counter() - start_time) + " seconds.")
+        start_time = time.perf_counter()
+    
+    print("Image dimension: height = " + str(image.shape[0]) + " px, width = " + str(image.shape[1]) + " px")
+
     original_image = image.copy()
     print("Copy image takes " + str(time.perf_counter() - start_time) + " seconds.")
     start_time = time.perf_counter()
